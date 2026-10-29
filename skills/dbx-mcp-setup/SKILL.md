@@ -1,18 +1,31 @@
 ---
 name: dbx-mcp-setup
-description: 定位本机 DBX MCP Server 可执行文件并修正插件的 MCP 命令声明。当 dbx 服务启动失败、报 dbx-mcp-server 命令找不到、DBX 工具不可用，或用户要求安装/接入 DBX MCP 时使用。
+description: 定位或安装 DBX MCP Server，并把插件的 MCP 命令声明改成可解析的可执行名。当 dbx 服务启动失败、报 dbx-mcp 或 dbx-mcp-server 命令找不到、DBX 工具不可用，或用户要求安装/接入 DBX MCP 时使用。
 ---
 
 # DBX MCP 接入
 
 目标：让 `dbx` MCP Server 能在 MiniMax Code 里以 stdio 方式启动。
 
-DBX 的 MCP Server 只有两种落位方式，可执行文件名不同：
+DBX 官方 MCP Server 由一条命令安装：
 
-| 来源 | 可执行文件 | 位置 |
-| --- | --- | --- |
-| 官方安装器，或在 DBX「设置 → MCP」里安装 MCP 服务 | `dbx-mcp` | `~/.dbx/bin/dbx-mcp` |
-| npm 全局安装 `@dbx-app/mcp-server` | `dbx-mcp-server` | npm 全局 bin 目录 |
+```bash
+curl -fsSL https://dbxio.com/install-mcp | sh
+```
+
+安装结果：
+
+- 二进制落在 `~/.dbx/bin/dbx-mcp`，**可执行名是 `dbx-mcp`**；
+- 安装器会把 `export PATH="$HOME/.dbx/bin:$PATH"` 追加到 `~/.zshrc`；
+- Windows 用 `install-mcp.ps1`。
+
+安装器给出的官方客户端配置用的是**绝对路径**：
+
+```json
+{"mcpServers":{"dbx":{"command":"/Users/<user>/.dbx/bin/dbx-mcp"}}}
+```
+
+MiniMax Plugin 的 `stdio.command` 只允许 PATH 中的可执行名、不能带路径，所以必须让 `dbx-mcp` 成为一个 PATH 可解析的名字。这是本技能存在的原因。
 
 插件的 MCP 声明文件（本地安装路径）：
 
@@ -26,21 +39,35 @@ DBX 的 MCP Server 只有两种落位方式，可执行文件名不同：
 
 用 Read 工具打开上面的文件，记下 `mcpServers.dbx.command` 当前值。
 
-## 2. 搜寻可执行文件
+## 2. 确认已安装
+
+```bash
+ls -l ~/.dbx/bin/ 2>/dev/null
+~/.dbx/bin/dbx-mcp --version 2>/dev/null
+```
+
+没有输出就执行官方安装命令（会自行校验 npm 包 sha512 与 macOS 签名，已安装时输出 `already up to date`）：
+
+```bash
+curl -fsSL https://dbxio.com/install-mcp | sh
+```
+
+用户也可以不装命令行版本，改用 DBX 桌面端 **设置 → MCP** 安装 MCP 服务；安装器自己也是这么推荐的。二选一即可，不要同时装两套。
+
+## 3. 搜寻可执行文件
 
 先查 PATH，再查常见落位目录：
 
 ```bash
-command -v dbx-mcp-server dbx-mcp
-ls -l ~/.dbx/bin/ 2>/dev/null
-ls -l ~/.local/bin ~/.npm-global/bin /usr/local/bin /opt/homebrew/bin 2>/dev/null | grep dbx
+command -v dbx-mcp dbx-mcp-server
+ls -l ~/.dbx/bin/ ~/.local/bin ~/.npm-global/bin /usr/local/bin /opt/homebrew/bin 2>/dev/null | grep dbx
 npm bin -g 2>/dev/null
 find ~ -maxdepth 5 -name 'dbx-mcp*' -not -path '*/Library/*' 2>/dev/null
 ```
 
 Windows 落位：`%USERPROFILE%\.dbx\bin\dbx-mcp.exe`、`%APPDATA%\npm\dbx-mcp-server.cmd`。
 
-## 3. 校验候选确实会说 MCP
+## 4. 校验候选确实会说 MCP
 
 对每个候选发一次 initialize，拿到 `serverInfo` 才算数：
 
@@ -50,7 +77,7 @@ printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocol
 
 期望输出含 `"serverInfo"` 与 `"name":"dbx"`。不是 MCP 程序的候选会直接报错或没有输出。
 
-## 4. 确认运行时 PATH 能解析到
+## 5. 让命令名在运行时 PATH 里可解析
 
 GUI 启动的 MiniMax Code 不读 `.zshrc`，所以 `~/.dbx/bin` 里的文件通常不在进程 PATH 里：
 
@@ -61,14 +88,14 @@ echo "$PATH" | tr ':' '\n' | grep -qx "$HOME/.dbx/bin" && echo on-PATH || echo n
 不在 PATH 时，在 PATH 内的目录建软链，让声明里的命令名可解析：
 
 ```bash
-ln -sf "$HOME/.dbx/bin/dbx-mcp" "$HOME/.npm-global/bin/dbx-mcp-server"
+ln -sf "$HOME/.dbx/bin/dbx-mcp" "$HOME/.local/bin/dbx-mcp"
 ```
 
-软链目标目录先确认在 PATH 内（`~/.npm-global/bin`、`~/.local/bin` 是常见选择），也可换成 PATH 内其他目录。
+`~/.local/bin` 与 `~/.npm-global/bin` 都在 PATH 内，任选其一。若 PATH 里只有 npm 启动器 `dbx-mcp-server`（`npm i -g @dbx-app/mcp-server` 装的），同样建软链，或改用官方安装器换掉 npm 版本——官方安装器明确建议：`npm rm -g @dbx-app/mcp-server`。
 
-## 5. 更新 MCP 声明
+## 6. 更新 MCP 声明
 
-用 Edit 工具把 `mcpServers.dbx.command` 改成第 4 步确认过的可执行**名**，不能带 `/` 或 `\`。其余字段（`schemaVersion`、`type`、`description`、`timeout`）保持不变：
+用 Edit 工具把 `mcpServers.dbx.command` 改成第 5 步确认过的可执行**名**，不能带 `/` 或 `\`。其余字段（`schemaVersion`、`type`、`description`、`timeout`）保持不变：
 
 ```json
 {
@@ -76,7 +103,7 @@ ln -sf "$HOME/.dbx/bin/dbx-mcp" "$HOME/.npm-global/bin/dbx-mcp-server"
   "mcpServers": {
     "dbx": {
       "type": "stdio",
-      "command": "dbx-mcp-server",
+      "command": "dbx-mcp",
       "description": "通过本机 DBX 连接查询数据库：列出连接与表结构、执行 SQL、读取查询结果。",
       "timeout": 60000
     }
@@ -86,25 +113,35 @@ ln -sf "$HOME/.dbx/bin/dbx-mcp" "$HOME/.npm-global/bin/dbx-mcp-server"
 
 改完校验 JSON 合法：`python3 -m json.tool ~/.minimax/plugins/dbx-mcp/dbx.mcp.json`
 
-## 6. 验证
+## 7. 验证
 
 ```bash
 printf '%s\n' \
   '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"probe","version":"1.0"}}}' \
   '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
   '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' \
-  | <命令名>
+  | dbx-mcp
 ```
 
-期望 `tools/list` 返回 `dbx_*` 工具列表（当前版本 16 个）。工具不会立刻出现在当前会话里，运行时重扫或新开会话后才可见。
+期望 `tools/list` 返回 `dbx_*` 工具列表（当前版本 16 个）。改完 `command` 需要 MCP 客户端重新拉起服务才生效，工具不会立刻出现在当前会话里。
 
-## 7. 找不到可执行文件时
+## 8. macOS 钥匙串授权
 
-不要自己编造命令名。直接引导用户安装：
+DBX 的连接凭据存在系统钥匙串里。MCP 客户端读不到 DBX 加密密钥时，连接会报密钥不可用，需要一次性授权：
+
+```bash
+~/.dbx/bin/dbx-mcp --authorize-keychain
+```
+
+弹出系统提示时选「Always Allow」（不是「Allow」），然后重启 MCP 客户端。DBX 桌面端在 **设置 → MCP** 里也能代做这一步。
+
+## 9. 仍然找不到可执行文件时
+
+不要自己编造命令名。直接引导用户：
 
 1. 打开 DBX（桌面端或 Web）。
 2. 进入 **设置 → MCP**。
 3. 在 MCP 服务区域安装 MCP 服务。装完后 DBX 会把 MCP Server 放到 `~/.dbx/bin`。
-4. 装完回到第 2 步重跑搜寻，再更新声明。
+4. 装完回到第 3 步重跑搜寻，再更新声明。
 
-用户说已经装过但仍搜不到时，把第 2 步的 `find` 范围扩到整个用户目录再找一次，并检查该路径是否在运行时 PATH 内（回到第 4 步）。
+用户说已经装过但仍搜不到时，把第 3 步的 `find` 范围扩到整个用户目录再找一次，并回到第 5 步确认路径与 PATH 关系。
