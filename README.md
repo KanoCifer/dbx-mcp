@@ -80,25 +80,6 @@ printf '%s\n' \
   | dbx-mcp
 ```
 
-## 打包投稿
-
-在包目录内打包，让 ZIP 根目录直接就是包内容：
-
-```bash
-cd ~/Code/dbx-mcp
-zip -r ../dbx-mcp.zip . -x '*.DS_Store' './.git/*'
-```
-
-ZIP 根目录需直接包含 `.minimax-plugin/plugin.json`；若压成 `dbx-mcp/.minimax-plugin/plugin.json` 这种多套一层目录的形式会被直接驳回。
-
-提交入口见 [插件开发与上架指南](https://agent.minimax.cn/docs/code/agents/plugin-submission)。包内改动后需提升 `plugin.json` 中的 `version`。
-
-## 仓库
-
-<https://github.com/KanoCifer/dbx-mcp>
-
-以 GitHub 为来源投稿时，表单填写上面的仓库根地址，Ref 填 `main`，Plugin 子目录留空（仓库根目录即包根目录）。
-
 ## 许可
 
 MIT，见 [LICENSE](LICENSE)。本插件不包含 DBX 本体代码，也不分发任何凭据；DBX MCP Server 由用户自行安装，遵循其上游项目的许可。
