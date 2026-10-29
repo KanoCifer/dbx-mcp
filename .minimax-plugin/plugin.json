@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "name": "dbx-mcp",
+  "displayName": "DBX 数据库助手",
+  "version": "1.1.0",
+  "description": "连接本机 DBX 中已配置的数据库，用自然语言查看表结构、执行 SQL 并读取结果，支持 MySQL、PostgreSQL、MongoDB、Redis 等数据源。",
+  "author": "Kuroome",
+  "icon": "icon.png",
+  "category": "Code",
+  "exampleQueries": [
+    "列出我当前连接的数据库和其中的表",
+    "查询 users 表最近的 10 条记录",
+    "帮我看看 orders 表的字段和索引"
+  ],
+  "apps": [],
+  "mcpServers": ["dbx.mcp.json"],
+  "skills": ["skills/dbx-mcp-setup/SKILL.md"]
+}

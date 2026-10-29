@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "mcpServers": {
+    "dbx": {
+      "type": "stdio",
+      "command": "dbx-mcp-server",
+      "description": "通过本机 DBX 连接查询数据库：列出连接与表结构、执行 SQL、读取查询结果。",
+      "timeout": 60000
+    }
+  }
+}
