@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "name": "dbx-mcp",
   "displayName": "DBX 数据库助手",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "连接本机 DBX 中已配置的数据库，用自然语言查看表结构、执行 SQL 并读取结果，支持 MySQL、PostgreSQL、MongoDB、Redis 等数据源。",
   "author": "Kuroome",
   "icon": "icon.png",
